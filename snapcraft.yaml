@@ -1,6 +1,6 @@
 name: ocrthypdf
 title: OCRthyPDF Essentials
-base: core20 # the base snap is the execution environment for this snap
+base: core24 # the base snap is the execution environment for this snap
 adopt-info: ocrthypdf
 summary: Make your PDF files text-searchable (A GUI for OCRmyPDF)
 description: |
@@ -16,15 +16,11 @@ icon: gui/ocrthypdf.svg
 compression: lzo 
 grade: stable # 'stable' 'devel'
 confinement: strict # 'strict' 'devmode'
-architectures: [amd64]
-package-repositories:
- - type: apt
-   ppa: alex-p/tesseract-ocr5
- - type: apt
-   ppa: alex-p/jbig2enc      
+platforms:
+  amd64: 
 
 environment:
-    PYTHONPATH: $SNAP/usr/bin/python3.9
+    PYTHONPATH: "$PYTHONPATH:$SNAP/usr/lib/python3/dist-packages:$SNAP/usr/lib/python3.12:$SNAP/usr/lib/python3.12/lib-dynload"
     TESSDATA_PREFIX: $SNAP/usr/share/tesseract-ocr/tessdata
     GS_LIB: $SNAP/usr/share/ghostscript/Init 
     GS_FONTPATH: $SNAP/usr/share/ghostscript/Font
@@ -33,10 +29,10 @@ environment:
 
 apps:
   ocrthypdf:
-    command: usr/bin/snapcraft-preload $SNAP/bin/python3.9 $SNAP/code/OCRthyPDF.py
+    command: bin/snapcraft-preload $SNAP/bin/python3.12 $SNAP/code/OCRthyPDF.py
     command-chain: [bin/debian-multiarch-triplet-provider-launch, bin/tcltk-launch]
     desktop: $SNAPCRAFT_PROJECT_DIR/gui/ocrthypdf.desktop
-    extensions: [gnome-3-38]
+    extensions: [gnome]
     plugs:
       - home
       - removable-media
@@ -80,7 +76,7 @@ parts:
       - ghostscript
       - curl
     override-prime: |
-      snapcraftctl prime
+      craftctl default
 
       gslibpath=$(gs -h | grep  Resource/Init | tr -d ' ':)
       ln -s -f ${gslibpath/\/usr\/share\/ghostscript/.} .${gslibpath}/../../../Init
@@ -102,7 +98,7 @@ parts:
     source-type: git
 
     stage-packages: 
-      - python3.9-venv
+      - python3.12-venv
       - python3-tk
       - fonts-freefont-ttf
       - tcl
@@ -114,49 +110,25 @@ parts:
       - libzbar0
       - libnspr4
       - libnss3
-      - libpoppler-cpp0v5
-      - libpoppler97
-      - jbig2enc
+      - libpoppler-cpp0t64
+      - libpoppler134
+      - jbig2
     
     override-pull: |
-      snapcraftctl pull  
-      snapcraftctl set-version "$(git describe --tags)"
+      craftctl default
+      craftctl set version="$(git describe --tags)"
     
     build-packages:
       - build-essential
-      - python3.9-venv
-      - python3.9-dev
+      - python3.12-venv
+      - python3.12-dev
       - libpoppler-cpp-dev  
       - pipenv
-
-    build-environment:
-      - SNAPCRAFT_PYTHON_INTERPRETER: python3.9   
-      # python3.9 lives in $SNAPCRAFT_PART_INSTALL/bin
-      - PATH: $SNAPCRAFT_PART_INSTALL/bin:/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/:/usr/include/c++/9/:/usr/include/c++/:$PATH   
-      - CPATH:  /usr/include/x86_64-linux-gnu/c++/9/:/usr/lib/gcc/x86_64-linux-gnu/9/:usr/lib/gcc/x86_64-linux-gnu/:/usr/include/c++/9/:/usr/include/c++/
-      - PYTHONPATH: ''
-
-    override-build: |
-      # Work around a bug in snapcraft python plugin / gnome 3.38 extension
-      # https://forum.snapcraft.io/t/build-a-snap-with-any-version-of-python-i-want/10420/8
-          
-      rm -rf $SNAPCRAFT_PART_INSTALL/usr/lib/python3.9/distutils
-      cp -r /usr/lib/python3.9/distutils $SNAPCRAFT_PART_INSTALL/usr/lib/python3.9/distutils
-      mkdir -p $SNAPCRAFT_PART_INSTALL/usr/include/
-      cp -r /usr/include/python3.9 $SNAPCRAFT_PART_INSTALL/usr/include/python3.9    
-      
-      snapcraftctl build
-      
-      pip install -U pip wheel setuptools
-      # ocrmypdf version >= 15.0.0 has dependecies not available in core20 
-      pip install pdftotext ocrmypdf==14.4.0 pikepdf==8.15.1 pyzbar darkdetect rich
-      pip uninstall -y wheel 
-
-      # Apply shebang rewrite as done by snapcraft
-      
-      find $SNAPCRAFT_PART_INSTALL/bin/ -maxdepth 1 -mindepth 1 -type f -executable -exec \
-        sed -i                                                                                \
-          "s|^#!${SNAPCRAFT_PART_INSTALL}/bin/python3.9$|#!/usr/bin/env python3|" {} \;
-      
-      # debug
-      find $SNAPCRAFT_PART_INSTALL/bin/ -maxdepth 1 -mindepth 1 -type f -executable -exec head -n 1 {} \;
+    
+    python-packages:
+      - pdftotext
+      - ocrmypdf
+      - pikepdf
+      - pyzbar
+      - darkdetect
+      - rich
